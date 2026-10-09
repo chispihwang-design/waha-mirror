@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag de devlikeapro/waha a espejar"
+        description: "Tag de devlikeapro/waha a publicar (debe existir un release con waha-<tag>.tar.gz)"
         required: true
         default: "latest-2026.9.2"
 permissions:
@@ -19,9 +19,13 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Copiar imagen
+      - name: Bajar la imagen del release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release download "v${{ inputs.tag }}" -R "${{ github.repository }}" -p "waha-${{ inputs.tag }}.tar.gz" -D .
+      - name: Cargar y publicar
         run: |
-          SRC="docker.io/devlikeapro/waha:${{ inputs.tag }}"
+          docker load -i "waha-${{ inputs.tag }}.tar.gz"
           DST="ghcr.io/${{ github.repository_owner }}/waha:${{ inputs.tag }}"
-          docker buildx imagetools create --tag "$DST" "$SRC"
-          docker buildx imagetools inspect "$DST" | head -20
+          docker tag "devlikeapro/waha:${{ inputs.tag }}" "$DST"
+          docker push "$DST"
